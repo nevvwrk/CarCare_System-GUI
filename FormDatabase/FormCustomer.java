@@ -9,11 +9,22 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.TextField;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
@@ -21,14 +32,30 @@ import javax.swing.JTextField;
 import javax.swing.UIManager;
 import javax.swing.table.DefaultTableModel;
 
+import CarCare.MyConnect;
+
 public class FormCustomer extends JFrame{
+	
+	Connection conn = MyConnect.getConnection();
+	
+	
 	JTextField txtCustNum, txtCustName, txtCustAddr, txtCustPhone,
 	txtCustMail,txtSearchCust;
+	
+	JButton cmdSaveCust, cmdClear;
 		
 	JTable tableCust;
 	DefaultTableModel modelCustomer;
 		
 	public FormCustomer() {
+		
+		if(conn != null) {
+			System.out.println("Database connected ");
+
+		} else {
+			System.out.println("Not Connected");
+		}
+		
 		UIManager.put("OptionPane.messageFont", new Font("Tahoma", Font.PLAIN, 13));
 		UIManager.put("TitledBorder.font",(new Font("Tahoma", Font.PLAIN, 13)));
 		UIManager.put("Label.font", new Font("Tahoma", Font.PLAIN, 13));
@@ -49,9 +76,7 @@ public class FormCustomer extends JFrame{
 		//right of container 
 		JPanel pEnd = new JPanel();
 		pEnd.setLayout(new GridBagLayout());
-		GridBagConstraints gbc = new GridBagConstraints();
-		
-		
+		GridBagConstraints gbc = new GridBagConstraints();	
 		
 		pEnd.setBorder(BorderFactory.createEmptyBorder(5,5,5,5));
 		
@@ -96,6 +121,13 @@ public class FormCustomer extends JFrame{
 		//panelSearch.setLayout(new FlowLayout(FlowLayout.LEFT));
 		txtSearchCust= new JTextField();
 		txtSearchCust.setPreferredSize(new Dimension(200,30));
+		//automatic search when key insert
+		txtSearchCust.addKeyListener(new KeyAdapter(){
+					public void keyReleased(KeyEvent e) {
+						showData();
+					}
+				});
+		
 		panelSearch.add(lblSearch);
 		panelSearch.add(txtSearchCust);
 		
@@ -118,12 +150,56 @@ public class FormCustomer extends JFrame{
 		
 		//Button section
 		JPanel panelButton = new JPanel();
-		JButton cmdSaveCust = new JButton("เพิ่มข้อมูล");
+		cmdSaveCust = new JButton("เพิ่มข้อมูล");
+		cmdSaveCust.addActionListener(new ActionListener()
+				{
+					public void actionPerformed(ActionEvent e) {
+						//when mouse click button
+						//will call insert()
+						insert();
+					}
+				}
+				);
+		
+		
 		JButton cmdEditCust = new JButton("แก้ไข");
+		cmdEditCust.addActionListener(new ActionListener()
+				{
+					public void actionPerformed(ActionEvent e) {
+						//when mouse click button
+						//will call update()
+						update();
+					}
+				}
+				);
 		JButton cmdDeleteCust = new JButton("ลบ");
+		cmdDeleteCust.addActionListener(new ActionListener()
+				{
+					public void actionPerformed(ActionEvent e) {
+						delete();
+					}
+				}
+				);
+		//clear form
+		cmdClear = new JButton("ยกเลิก");
+		cmdClear.addActionListener(new ActionListener()
+				{
+					public void actionPerformed(ActionEvent e) {
+						showData();
+						cmdSaveCust.setEnabled(true);
+						txtCustNum.setEditable(true);
+						txtCustNum.setText("");
+						txtCustName.setText("");
+						txtCustAddr.setText("");
+						txtCustPhone.setText("");
+						txtCustMail.setText("");
+					}
+				}
+				);
 		panelButton.add(cmdSaveCust);
 		panelButton.add(cmdEditCust);
 		panelButton.add(cmdDeleteCust);
+		panelButton.add(cmdClear);
 		
 		
 		//table
@@ -132,6 +208,22 @@ public class FormCustomer extends JFrame{
 		scrollTable.setPreferredSize(new Dimension(400,103));
 		
 		tableCust = new JTable();
+		tableCust.addMouseListener(new MouseAdapter() {
+			public void mouseClicked(MouseEvent e) {
+				//get value and keep value to index
+				int index = tableCust.getSelectedRow();
+				//txtCustNum can't edit
+				cmdSaveCust.setEnabled(true);
+				txtCustNum.setEditable(false);
+				txtCustNum.setText(tableCust.getValueAt(index, 0).toString());
+				txtCustName.setText(tableCust.getValueAt(index, 1).toString());
+				txtCustAddr.setText(tableCust.getValueAt(index, 2).toString());
+				txtCustPhone.setText(tableCust.getValueAt(index, 3).toString());
+				txtCustMail.setText(tableCust.getValueAt(index, 4).toString());				
+			}
+			
+		});
+		
 		Object data[][] = {
 				{null,null,null,null,null},
 				{null,null,null,null,null},
@@ -140,7 +232,7 @@ public class FormCustomer extends JFrame{
 				{null,null,null,null,null},
 				
 		};
-		String header[] = {"เลขที่ลูกค้า","ชื่อลูกค้า","ที่อยู่ลูกค้า","เบอร์โทรศัพท์","อีเมล"};
+		String header[] = {"เลขที่ลูกค้า","ชื่อลูกค้า","ที่อยู่ลูกค้า","เบอร์โทรศัพท์ลูกค้า","อีเมลลูกค้า"};
 		
 		modelCustomer = new DefaultTableModel(data,header) {
 			public boolean isCellEditable(int row,int columns) {
@@ -165,7 +257,163 @@ public class FormCustomer extends JFrame{
 		
 		c.add(pEnd,BorderLayout.LINE_END);
 		////END RIGHT OF CONTAINER
+		
+		showData();
 	}
 	
+	public void showData() {
+		/*
+		 * 1.ลบข้อมูลออกจาก JTable
+		 * 2. เขีนย SQL
+		 * 3.ประมวล SQL
+		 * 4. resultset
+		 * 5.mode --> JTable
+		 */
+		
+		try {
+			int totalRow = tableCust.getRowCount()-1;
+			
+			while(totalRow > -1) {
+				modelCustomer.removeRow(totalRow);
+				totalRow--;
+			}
+			
+			//String search is push value of txtSearch to String search
+			//.trim() is remove spacing on textField
+			String search = txtSearchCust.getText().trim();
+			String SQL = "select * from customer"
+					//between form and where need spacing
+					+ " WHERE CUST_NUM LIKE '%"+search+"%' OR"
+					+ " CUST_NAME LIKE '%"+search+"%' OR"
+					+ " CUST_ADDR LIKE '%"+search +"%' OR"
+					+ " CUST_PHONE LIKE '%"+search+"%' OR"
+					+ " CUST_MAIL LIKE '%"+search+"%' ";
 
+			ResultSet rs = conn.createStatement().executeQuery(SQL);
+			
+			
+			int row=0;
+			while(rs.next()) {
+				modelCustomer.addRow(new Object[0]);
+				
+				modelCustomer.setValueAt(rs.getString("CUST_NUM"), row, 0);
+				modelCustomer.setValueAt(rs.getString("CUST_NAME"), row, 1);
+				modelCustomer.setValueAt(rs.getString("CUST_ADDR"), row, 2);
+				modelCustomer.setValueAt(rs.getString("CUST_PHONE"), row, 3);
+				modelCustomer.setValueAt(rs.getString("CUST_MAIL"), row, 4);
+				row++;
+			}
+			tableCust.setModel(modelCustomer);
+
+		}catch(Exception e) {
+			e.printStackTrace();
+		}
+	}
+	public void insert() {
+			
+		try {
+		//check null insert or not 4 words
+		if(txtCustNum.getText().trim() == "" || txtCustNum.getText().trim().length() !=4) {
+			JOptionPane.showMessageDialog(
+					this,
+					"กรุณากรอกเลขที่ลูกค้า (4 หลัก)",
+					"ผลกรทำงาน",
+					JOptionPane.INFORMATION_MESSAGE);
+			return;
+		}
+		String sql = "INSERT INTO CUSTOMER VALUES (?,?,?,?,?)";
+		PreparedStatement pre = conn.prepareStatement(sql);
+		pre.setString(1,txtCustNum.getText().trim());
+		pre.setString(2,txtCustName.getText().trim());
+		pre.setString(3, txtCustAddr.getText().trim());
+		pre.setString(4, txtCustPhone.getText().trim());
+		pre.setString(5, txtCustMail.getText().trim());
+		
+		if(pre.executeUpdate() != -1) {
+			JOptionPane.showMessageDialog(
+					this,
+					"บันทึกข้อมูลเรียบร้อยแล้ว",
+					"ผลกรทำงาน",
+					JOptionPane.INFORMATION_MESSAGE
+					);
+			showData();
+			txtCustNum.setText("");
+			txtCustName.setText("");
+			txtCustAddr.setText("");
+			txtCustPhone.setText("");
+			txtCustMail.setText("");
+		}
+		} catch(SQLException e){
+			e.printStackTrace();
+		}
+	
+	}
+	public void update() {
+		
+		try {
+		
+		String sql = "UPDATE CUSTOMER SET CUST_NAME=?," 
+				+ " CUST_ADDR=?, "
+				+ " CUST_PHONE=?, "
+				+ " CUST_MAIL=? "
+				+ " WHERE CUST_NUM=? " ;
+		PreparedStatement pre = conn.prepareStatement(sql);
+		
+		pre.setString(1,txtCustName.getText().trim());
+		pre.setString(2, txtCustAddr.getText().trim());
+		pre.setString(3, txtCustPhone.getText().trim());
+		pre.setString(4, txtCustMail.getText().trim());
+		pre.setString(5,txtCustNum.getText().trim());
+		
+		if(pre.executeUpdate() != -1) {
+			JOptionPane.showMessageDialog(
+					this,
+					"อัพเดทข้อมูลสำเร็จแล้ว",
+					"ผลกรทำงาน",
+					JOptionPane.INFORMATION_MESSAGE
+					);
+			showData();
+			cmdSaveCust.setEnabled(true);
+			txtCustNum.setEditable(true);
+			txtCustNum.setText("");
+			txtCustName.setText("");
+			txtCustAddr.setText("");
+			txtCustPhone.setText("");
+			txtCustMail.setText("");
+		}
+		} catch(SQLException e){
+			e.printStackTrace();
+		}
+	
+	}
+	public void delete() {
+	try {
+		
+		String sql = "DELETE FROM CUSTOMER" 
+				+ " WHERE CUST_NUM=? " ;
+				
+		PreparedStatement pre = conn.prepareStatement(sql);
+		pre.setString(1,txtCustNum.getText().trim());
+		
+		if(pre.executeUpdate() != -1) {
+			JOptionPane.showMessageDialog(
+					this,
+					"ลบข้อมูลเรียบร้อยแล้ว",
+					"ผลกรทำงาน",
+					JOptionPane.INFORMATION_MESSAGE
+					);
+			showData();
+			cmdSaveCust.setEnabled(true);
+			txtCustNum.setEditable(true);
+			txtCustNum.setText("");
+			txtCustName.setText("");
+			txtCustAddr.setText("");
+			txtCustPhone.setText("");
+			txtCustMail.setText("");
+		}
+		} catch(SQLException e){
+			e.printStackTrace();
+		}
+	
+	}
 }
